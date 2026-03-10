@@ -1,219 +1,227 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Search, Filter, Eye, Edit, AlertTriangle, Plus } from 'lucide-react';
-import { Asset, AssetStatus, AssetCategory } from '../types';
+import { BrainCircuit, AlertTriangle, Activity, ShieldCheck, Wrench, ArrowRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Asset } from '../types';
 import { getAssets, getEmployeeById, initializeStorage } from '../utils/storage';
-import { StatusBadge } from '../components/StatusBadge';
 
-export function AssetsList() {
+export function AIAnalytics() {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<AssetStatus | 'all'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<AssetCategory | 'all'>('all');
+  const [highRiskAssets, setHighRiskAssets] = useState<Asset[]>([]);
+  const [riskData, setRiskData] = useState<any[]>([]);
+  const [stats, setStats] = useState({ avgRisk: 0, highRiskCount: 0, safeCount: 0 });
 
   useEffect(() => {
     initializeStorage();
-    loadAssets();
+    loadAnalytics();
   }, []);
 
-  useEffect(() => {
-    filterAssets();
-  }, [assets, searchTerm, statusFilter, categoryFilter]);
+  const loadAnalytics = () => {
+    const allAssets = getAssets();
+    setAssets(allAssets);
 
-  const loadAssets = () => {
-    const data = getAssets();
-    setAssets(data);
-  };
+    // AI Risk hisoblash (0-100%)
+    let totalRisk = 0;
+    let highRisk = [];
+    let safe = 0;
 
-  const filterAssets = () => {
-    let filtered = [...assets];
+    let lowCount = 0;
+    let mediumCount = 0;
+    let highCount = 0;
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (asset) =>
-          asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          asset.id.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    allAssets.forEach(asset => {
+      const risk = asset.riskScore || 0;
+      totalRisk += risk;
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((asset) => asset.status === statusFilter);
-    }
+      if (risk >= 70) {
+        highRisk.push(asset);
+        highCount++;
+      } else if (risk >= 40) {
+        mediumCount++;
+      } else {
+        safe++;
+        lowCount++;
+      }
+    });
 
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter((asset) => asset.category === categoryFilter);
-    }
+    setHighRiskAssets(highRisk.sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0)));
+    setStats({
+      avgRisk: allAssets.length > 0 ? Math.round(totalRisk / allAssets.length) : 0,
+      highRiskCount: highCount,
+      safeCount: safe
+    });
 
-    setFilteredAssets(filtered);
-  };
-
-  const getRiskColor = (score?: number) => {
-    if (!score) return 'text-gray-400';
-    if (score >= 70) return 'text-red-600';
-    if (score >= 40) return 'text-yellow-600';
-    return 'text-green-600';
-  };
-
-  const getRiskLabel = (score?: number) => {
-    if (!score) return '-';
-    if (score >= 70) return 'Yuqori xavf';
-    if (score >= 40) return 'O\'rta xavf';
-    return 'Past xavf';
+    setRiskData([
+      { name: 'Xavfsiz (<40%)', count: lowCount, color: '#10b981' },
+      { name: 'O\'rta xavf (40-69%)', count: mediumCount, color: '#f59e0b' },
+      { name: 'Yuqori xavf (≥70%)', count: highCount, color: '#ef4444' }
+    ]);
   };
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+          <BrainCircuit className="h-7 w-7 text-indigo-600" />
+        </div>
         <div>
-          <h1 className="text-2xl lg:text-3xl mb-2">Jihozlar ro'yxati</h1>
-          <p className="text-gray-600">Barcha aktivlarni ko'rish va boshqarish</p>
+          <h1 className="text-2xl lg:text-3xl mb-1 text-indigo-950">AI Tahlil va Bashoratlar</h1>
+          <p className="text-gray-600">Sun'iy intellekt orqali jihozlarning buzilish xavfini oldindan aniqlash</p>
         </div>
-        <Link
-          to="/assets/new"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-900 transition-colors w-full lg:w-auto justify-center"
-        >
-          <Plus className="h-5 w-5" />
-          <span>Yangi aktiv</span>
-        </Link>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-2 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Nomi, seriya raqami yoki ID bo'yicha qidirish..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+      {/* Tahlil kartalari */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg p-6 border border-gray-200 flex items-center gap-4 shadow-sm">
+          <div className="p-4 bg-blue-50 rounded-full text-blue-600">
+            <Activity className="h-8 w-8" />
           </div>
-
           <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as AssetStatus | 'all')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">Barcha holatlar</option>
-              <option value="registered">Ro'yxatga olingan</option>
-              <option value="assigned">Berilgan</option>
-              <option value="in-repair">Ta'mirda</option>
-              <option value="lost">Yo'qolgan</option>
-            </select>
+            <p className="text-sm text-gray-500 mb-1">O'rtacha xavf darajasi</p>
+            <p className="text-3xl font-semibold text-gray-800">{stats.avgRisk}%</p>
           </div>
+        </div>
 
+        <div className="bg-white rounded-lg p-6 border border-red-200 flex items-center gap-4 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -z-10"></div>
+          <div className="p-4 bg-red-50 rounded-full text-red-600">
+            <AlertTriangle className="h-8 w-8" />
+          </div>
           <div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as AssetCategory | 'all')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">Barcha toifalar</option>
-              <option value="IT">IT Jihozlar</option>
-              <option value="Office">Ofis jihozlari</option>
-              <option value="Security">Xavfsizlik</option>
-            </select>
+            <p className="text-sm text-gray-500 mb-1">Xavfli jihozlar soni</p>
+            <p className="text-3xl font-semibold text-red-600">{stats.highRiskCount} ta</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 border border-gray-200 flex items-center gap-4 shadow-sm">
+          <div className="p-4 bg-green-50 rounded-full text-green-600">
+            <ShieldCheck className="h-8 w-8" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Xavfsiz jihozlar</p>
+            <p className="text-3xl font-semibold text-gray-800">{stats.safeCount} ta</p>
           </div>
         </div>
       </div>
 
-      {/* Assets Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Nomi</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Toifasi</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Seriya raqami</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Holati</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Biriktirilgan</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    AI Xavf
-                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600 uppercase tracking-wider">Harakatlar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredAssets.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* AI Tavsiyalari */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <BrainCircuit className="h-5 w-5 text-indigo-600" />
+            AI Tavsiyalari (Smart Insights)
+          </h3>
+          <div className="space-y-4">
+            {highRiskAssets.length > 0 ? (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-red-900 mb-1">Zudlik bilan ta'mirlash zarur!</h4>
+                  <p className="text-sm text-red-700">
+                    Tizimda <b>{stats.highRiskCount} ta</b> jihozning buzilish xavfi 70% dan yuqori. Ularni tezkor tekshiruvdan o'tkazish tavsiya etiladi. Aks holda ish jarayoni to'xtab qolishi mumkin.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-green-50 border border-green-100 rounded-lg flex gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-green-900 mb-1">Barchasi joyida!</h4>
+                  <p className="text-sm text-green-700">
+                    Hozirda yuqori xavf ostidagi jihozlar aniqlanmadi. Tizim barqaror ishlamoqda.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-lg flex gap-3">
+              <Activity className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-indigo-900 mb-1">Amortizatsiya tahlili</h4>
+                <p className="text-sm text-indigo-700">
+                  IT bo'limidagi noutbuklarning o'rtacha ishlash muddati 3 yilni tashkil qildi. 2024-yilda olingan jihozlarning kafolat muddatini uzaytirish maqsadga muvofiq.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Xavf Grafigi */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Risk darajalari taqsimoti</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={riskData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'transparent' }} />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {riskData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Yuqori xavfli jihozlar jadvali */}
+      {highRiskAssets.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-gray-200 bg-red-50/30 flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-red-800 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Diqqat talab etuvchi jihozlar (Yuqori xavf)
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                    Hech qanday aktiv topilmadi
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktiv Nomi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seriya Raqami</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Egasining Ismi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buzilish xavfi</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harakat</th>
                 </tr>
-              ) : (
-                filteredAssets.map((asset) => {
-                  const employee = asset.assignedTo ? getEmployeeById(asset.assignedTo) : null;
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {highRiskAssets.map((asset) => {
+                  const emp = asset.assignedTo ? getEmployeeById(asset.assignedTo) : null;
                   return (
-                    <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={asset.id} className="hover:bg-red-50/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-mono text-gray-900">{asset.id}</span>
+                        <div className="text-sm font-medium text-gray-900">{asset.name}</div>
+                        <div className="text-xs text-gray-500">{asset.category}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900">{asset.name}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-600">{asset.category}</span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        {asset.serialNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-mono text-gray-600">{asset.serialNumber}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={asset.status} />
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {employee ? employee.name : '-'}
-                        </span>
+                        <div className="text-sm text-gray-900">{emp ? emp.name : 'Omborda (Biriktirilmagan)'}</div>
+                        {emp && <div className="text-xs text-gray-500">{emp.department}</div>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {asset.riskScore && asset.riskScore >= 70 && (
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                          )}
-                          <span className={`text-sm ${getRiskColor(asset.riskScore)}`}>
-                            {asset.riskScore ? `${asset.riskScore}%` : '-'}
-                          </span>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-[100px]">
+                            <div className="bg-red-600 h-2.5 rounded-full" style={{ width: `${asset.riskScore}%` }}></div>
+                          </div>
+                          <span className="text-sm font-bold text-red-600">{asset.riskScore}%</span>
                         </div>
-                        <span className={`text-xs ${getRiskColor(asset.riskScore)}`}>
-                          {getRiskLabel(asset.riskScore)}
-                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={`/assets/${asset.id}`}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ko'rish"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            to={`/assets/${asset.id}/edit`}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Tahrirlash"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Link to={`/assets/${asset.id}`} className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors">
+                          Ko'rish <ArrowRight className="h-4 w-4" />
+                        </Link>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
