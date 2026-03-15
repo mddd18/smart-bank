@@ -181,11 +181,7 @@ export const getAssetsByDepartment = async () => {
     const count = assets.filter(asset => 
       asset.assignedTo && deptEmployeeIds.includes(asset.assignedTo)
     ).length;
-    // Boshqa fayllar xato bermasligi uchun bo'sh funksiya qoldiramiz
-export const initializeStorage = () => {
-  // Endi soxta ma'lumotlar kerak emas, barchasi Supabase'dan keladi
-  console.log("Supabase bazasiga ulanish tayyor!");
-};
+    
     return {
       name: dept.name,
       count,
@@ -193,4 +189,12 @@ export const initializeStorage = () => {
   });
   
   return deptAssets;
+};
+
+// ==========================================
+// BOSHQA FAYLLAR XATO BERMASLIGI UCHUN
+// (Bu funksiya hech qaysi funksiyaning ichida emas, alohida turishi kerak)
+// ==========================================
+export const initializeStorage = () => {
+  console.log("Supabase bazasiga ulanish tayyor!");
 };
