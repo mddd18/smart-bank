@@ -8,6 +8,7 @@ import { Employees } from './pages/Employees';
 import { Departments } from './pages/Departments';
 import { QRScanner } from './pages/QRScanner';
 import { NotFound } from './pages/NotFound';
+import { AIAnalytics } from './pages/AIAnalytics';
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'assets/:id/edit', Component: AddAsset },
       { path: 'employees', Component: Employees },
       { path: 'departments', Component: Departments },
+      { path: 'ai-analytics', Component: AIAnalytics },
       { path: 'scan', Component: QRScanner },
       { path: '*', Component: NotFound },
     ],
