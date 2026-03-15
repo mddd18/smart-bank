@@ -1,169 +1,123 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import { Package, CheckCircle, Wrench, AlertTriangle, Plus, QrCode } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { StatCard } from '../components/StatCard';
-import { getAssetStats, getAssetsByCategory, getAssetsByDepartment, getAuditLogs, initializeStorage } from '../utils/storage';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Activity, Package, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
+import { getAssetStats, getAssetsByCategory, getAuditLogs } from '../utils/storage';
 import { AuditLog } from '../types';
-import { format } from 'date-fns';
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 export function Dashboard() {
   const [stats, setStats] = useState({ total: 0, registered: 0, assigned: 0, inRepair: 0, lost: 0 });
-  const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
-  const [departmentData, setDepartmentData] = useState<{ name: string; count: number }[]>([]);
+  const [categoryData, setCategoryData] = useState<{name: string, value: number}[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initializeStorage();
-    loadData();
+    loadDashboardData();
   }, []);
 
-  const loadData = () => {
-    const assetStats = getAssetStats();
-    setStats(assetStats);
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Supabase bazasidan barcha ma'lumotlarni KUTIB olamiz (await)
+      const statsData = await getAssetStats();
+      const catData = await getAssetsByCategory();
+      const logsData = await getAuditLogs();
 
-    const categories = getAssetsByCategory();
-    setCategoryData([
-      { name: 'IT Jihozlar', value: categories.IT },
-      { name: 'Ofis jihozlari', value: categories.Office },
-      { name: 'Xavfsizlik', value: categories.Security },
-    ]);
-
-    const departments = getAssetsByDepartment();
-    setDepartmentData(departments);
-
-    const logs = getAuditLogs();
-    setRecentLogs(logs.slice(-5).reverse());
+      setStats(statsData);
+      setCategoryData([
+        { name: 'IT Jihozlar', value: catData.IT },
+        { name: 'Office mebellari', value: catData.Office },
+        { name: 'Xavfsizlik', value: catData.Security },
+      ]);
+      
+      // Endi bemalol slice ishlatsak bo'ladi, chunki ma'lumot Array bo'lib keldi
+      setRecentLogs(logsData.slice(0, 5));
+    } catch (error) {
+      console.error("Dashboard ma'lumotlarini yuklashda xatolik:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh]">
+        <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-500">Bosh sahifa ma'lumotlari yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl mb-2">Dashboard</h1>
-          <p className="text-gray-600">Aktivlar statistikasi va umumiy ma'lumotlar</p>
-        </div>
-        <div className="flex gap-3">
-          <Link
-            to="/scan"
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <QrCode className="h-5 w-5" />
-            <span className="hidden sm:inline">QR Skanerlash</span>
-          </Link>
-          <Link
-            to="/assets/new"
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-900 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            <span className="hidden sm:inline">Yangi aktiv</span>
-          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500">Bank aktivlarining umumiy statistikasi</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          title="Jami aktivlar"
-          value={stats.total}
-          icon={Package}
-          iconColor="#1e3a8a"
-          bgColor="#e0e7ff"
-        />
-        <StatCard
-          title="Ro'yxatga olingan"
-          value={stats.registered}
-          icon={CheckCircle}
-          iconColor="#3b82f6"
-          bgColor="#dbeafe"
-        />
-        <StatCard
-          title="Berilgan"
-          value={stats.assigned}
-          icon={CheckCircle}
-          iconColor="#10b981"
-          bgColor="#d1fae5"
-        />
-        <StatCard
-          title="Ta'mirda"
-          value={stats.inRepair}
-          icon={Wrench}
-          iconColor="#f59e0b"
-          bgColor="#fef3c7"
-        />
-        <StatCard
-          title="Yo'qolgan"
-          value={stats.lost}
-          icon={AlertTriangle}
-          iconColor="#ef4444"
-          bgColor="#fee2e2"
-        />
+      {/* Statistika Kartochkalari */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><Package className="h-6 w-6" /></div>
+          <div><p className="text-sm text-gray-500">Jami Aktivlar</p><p className="text-2xl font-bold">{stats.total}</p></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-green-50 text-green-600 rounded-lg"><CheckCircle className="h-6 w-6" /></div>
+          <div><p className="text-sm text-gray-500">Biriktirilgan</p><p className="text-2xl font-bold">{stats.assigned}</p></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg"><AlertTriangle className="h-6 w-6" /></div>
+          <div><p className="text-sm text-gray-500">Ta'mirlanmoqda</p><p className="text-2xl font-bold">{stats.inRepair}</p></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-red-50 text-red-600 rounded-lg"><XCircle className="h-6 w-6" /></div>
+          <div><p className="text-sm text-gray-500">Yo'qolgan/Yaroqsiz</p><p className="text-2xl font-bold">{stats.lost}</p></div>
+        </div>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-          <h3 className="mb-4">Toifalar bo'yicha taqsimot</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+        {/* Doiraviy Grafik (Pie Chart) */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Toifalar bo'yicha taqsimot</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-          <h3 className="mb-4">Bo'limlar bo'yicha aktivlar</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={departmentData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} fontSize={12} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#1e3a8a" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h3 className="mb-4">Oxirgi o'zgarishlar</h3>
-        <div className="space-y-3">
-          {recentLogs.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">Hozircha faoliyat yo'q</p>
-          ) : (
-            recentLogs.map((log) => (
-              <div
-                key={log.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span style={{ fontWeight: 600 }}>{log.assetId}</span> - {log.action}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {log.performedBy} • {format(new Date(log.performedAt), 'dd.MM.yyyy HH:mm')}
+        {/* Oxirgi Harakatlar Tarixi */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm overflow-y-auto max-h-[400px]">
+          <h2 className="text-lg font-semibold mb-4">Oxirgi harakatlar</h2>
+          <div className="space-y-4">
+            {recentLogs.length > 0 ? recentLogs.map((log) => (
+              <div key={log.id} className="flex gap-4 items-start p-3 hover:bg-gray-50 rounded-lg transition">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-full mt-1">
+                  <Activity className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{log.action}</p>
+                  <p className="text-xs text-gray-500 mt-1">{log.details}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {new Date(log.date).toLocaleString('uz-UZ')} • {log.performedBy}
                   </p>
                 </div>
               </div>
-            ))
-          )}
+            )) : (
+              <p className="text-gray-500 text-sm text-center py-4">Hozircha tarix yo'q. Yangi jihoz qo'shib ko'ring!</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
