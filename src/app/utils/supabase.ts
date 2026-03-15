@@ -1,10 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase kalitlari topilmadi. Iltimos .env faylini tekshiring.');
-}
+// Diqqat: O'zingizning haqiqiy URL va Key'ingizni qo'shtirnoq ichiga yozing!
+const supabaseUrl = 'https://ycidujndvedciastpyyn.supabase.co'; 
+const supabaseKey = 'sb_publishable_UU3MdFex0tssBrmnxmrIMA_MOfxyLk0'; 
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
