@@ -1,222 +1,221 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
-import { ArrowLeft, Sparkles } from 'lucide-react';
-import { AssetCategory } from '../types';
-import { saveAsset, addAuditLog } from '../utils/storage';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router';
+import { ArrowLeft, Save, Loader2, Package } from 'lucide-react';
+import { Asset, Employee } from '../types';
+import { getAssetById, getEmployees, saveAsset } from '../utils/storage';
 
 export function AddAsset() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const isEditMode = Boolean(id);
+  
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(isEditMode);
+  const [saving, setSaving] = useState(false);
+
+  const [formData, setFormData] = useState<Partial<Asset>>({
     name: '',
-    category: 'IT' as AssetCategory,
+    category: 'IT',
     serialNumber: '',
-    purchaseDate: '',
+    status: 'registered',
+    assignedTo: '',
+    purchaseDate: new Date().toISOString().split('T')[0],
     warrantyUntil: '',
+    riskScore: 0
   });
-  const [showAISuggestion, setShowAISuggestion] = useState(false);
-  const [suggestedCategory, setSuggestedCategory] = useState<AssetCategory | null>(null);
 
-  const handleNameChange = (name: string) => {
-    setFormData({ ...formData, name });
+  useEffect(() => {
+    loadInitialData();
+  }, [id]);
 
-    // AI category suggestion
-    if (name.length > 3) {
-      let suggested: AssetCategory | null = null;
-      const lowerName = name.toLowerCase();
+  const loadInitialData = async () => {
+    try {
+      const emps = await getEmployees();
+      setEmployees(emps);
 
-      if (
-        lowerName.includes('laptop') ||
-        lowerName.includes('computer') ||
-        lowerName.includes('phone') ||
-        lowerName.includes('macbook') ||
-        lowerName.includes('dell') ||
-        lowerName.includes('hp') ||
-        lowerName.includes('lenovo')
-      ) {
-        suggested = 'IT';
-      } else if (
-        lowerName.includes('chair') ||
-        lowerName.includes('desk') ||
-        lowerName.includes('table') ||
-        lowerName.includes('printer')
-      ) {
-        suggested = 'Office';
-      } else if (
-        lowerName.includes('camera') ||
-        lowerName.includes('cctv') ||
-        lowerName.includes('security') ||
-        lowerName.includes('access') ||
-        lowerName.includes('biometric')
-      ) {
-        suggested = 'Security';
+      if (isEditMode && id) {
+        const asset = await getAssetById(id);
+        if (asset) {
+          setFormData(asset);
+        }
       }
-
-      if (suggested && suggested !== formData.category) {
-        setSuggestedCategory(suggested);
-        setShowAISuggestion(true);
-        setTimeout(() => setShowAISuggestion(false), 3000);
-      }
+    } catch (error) {
+      console.error("Xatolik:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const applySuggestion = () => {
-    if (suggestedCategory) {
-      setFormData({ ...formData, category: suggestedCategory });
-      setShowAISuggestion(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Generate asset ID
-    const assetId = `AST${String(Math.floor(Math.random() * 9000) + 1000)}`;
-
-    const newAsset = {
-      id: assetId,
-      name: formData.name,
-      category: formData.category,
-      serialNumber: formData.serialNumber,
-      status: 'registered' as const,
-      purchaseDate: formData.purchaseDate,
-      warrantyUntil: formData.warrantyUntil,
-      riskScore: Math.floor(Math.random() * 20) + 5, // Random low risk score for new assets
-    };
-
-    saveAsset(newAsset);
-
-    // Add audit log
-    addAuditLog({
-      id: `log-${Date.now()}`,
-      assetId: assetId,
-      action: 'Ro\'yxatga olindi',
-      performedBy: 'Admin',
-      performedAt: new Date().toISOString(),
-      details: 'Yangi aktiv yaratildi',
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     });
-
-    navigate(`/assets/${assetId}`);
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    try {
+      const assetToSave = { ...formData } as Asset;
+      // Yaratishda bazaga qo'shish
+      await saveAsset(assetToSave);
+      navigate('/assets');
+    } catch (error) {
+      console.error("Saqlashda xatolik:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-[70vh]">
+      <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+      <p className="text-gray-500">Ma'lumotlar yuklanmoqda...</p>
+    </div>
+  );
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 max-w-3xl">
+    <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/assets" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <ArrowLeft className="h-5 w-5" />
+        <Link to="/assets" className="p-2 hover:bg-gray-100 rounded-full transition">
+          <ArrowLeft className="h-5 w-5 text-gray-600" />
         </Link>
         <div>
-          <h1 className="text-2xl lg:text-3xl mb-1">Yangi aktiv qo'shish</h1>
-          <p className="text-gray-600">Yangi jihozni ro'yxatga oling</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isEditMode ? 'Jihozni tahrirlash' : 'Yangi jihoz qo\'shish'}
+          </h1>
+          <p className="text-gray-500">
+            {isEditMode ? 'Jihoz ma\'lumotlarini yangilash' : 'Tizimga yangi aktivni ro\'yxatdan o\'tkazish'}
+          </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-6 border border-gray-200 space-y-6">
-        <div>
-          <label className="block mb-2">
-            Jihozning nomi <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Masalan: Dell Latitude 7420"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {showAISuggestion && suggestedCategory && (
-              <div className="absolute top-full mt-2 left-0 right-0 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm text-blue-900">
-                    AI taklifi: <span style={{ fontWeight: 600 }}>{suggestedCategory}</span> toifasi
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={applySuggestion}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                >
-                  Qo'llash
-                </button>
-              </div>
-            )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Aktiv Nomi *</label>
+              <input
+                required
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Masalan: Dell XPS 15"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Seriya Raqami *</label>
+              <input
+                required
+                name="serialNumber"
+                value={formData.serialNumber}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="SN-123456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Kategoriya</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="IT">IT Jihozlar</option>
+                <option value="Office">Office Mebellari</option>
+                <option value="Security">Xavfsizlik</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Holati</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="registered">Omborda (Ro'yxatga olingan)</option>
+                <option value="assigned">Ishlatilmoqda (Biriktirilgan)</option>
+                <option value="in-repair">Ta'mirlanmoqda</option>
+                <option value="lost">Yo'qolgan / Yaroqsiz</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Biriktirilgan xodim</label>
+              <select
+                name="assignedTo"
+                value={formData.assignedTo || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="">-- Omborda (Hech kimga biriktirilmagan) --</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.department})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Buzilish xavfi (AI Taxmini, 0-100%)</label>
+              <input
+                type="number"
+                name="riskScore"
+                value={formData.riskScore}
+                onChange={handleChange}
+                min="0"
+                max="100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Xarid qilingan sana</label>
+              <input
+                type="date"
+                name="purchaseDate"
+                value={formData.purchaseDate}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Kafolat muddati</label>
+              <input
+                type="date"
+                name="warrantyUntil"
+                value={formData.warrantyUntil}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label className="block mb-2">
-            Toifa <span className="text-red-500">*</span>
-          </label>
-          <select
-            required
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value as AssetCategory })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="IT">IT Jihozlar</option>
-            <option value="Office">Ofis jihozlari</option>
-            <option value="Security">Xavfsizlik</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block mb-2">
-            Seriya raqami <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.serialNumber}
-            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-            placeholder="Masalan: DL7420-2024-001"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-2">
-              Sotib olingan sana <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={formData.purchaseDate}
-              onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+          <div className="pt-6 border-t border-gray-200 flex justify-end gap-3">
+            <Link to="/assets" className="px-5 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition font-medium">
+              Bekor qilish
+            </Link>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 font-medium disabled:opacity-70"
+            >
+              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+              {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
           </div>
-
-          <div>
-            <label className="block mb-2">
-              Kafolat muddati <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={formData.warrantyUntil}
-              onChange={(e) => setFormData({ ...formData, warrantyUntil: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 pt-4">
-          <Link
-            to="/assets"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-center"
-          >
-            Bekor qilish
-          </Link>
-          <button
-            type="submit"
-            className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-900 transition-colors"
-          >
-            Saqlash va QR kod yaratish
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
