@@ -1,152 +1,118 @@
-import { useEffect, useState } from 'react';
-import { User, Package } from 'lucide-react';
-import { Employee, Asset } from '../types';
-import { getEmployees, getAssets, initializeStorage } from '../utils/storage';
+import { useState, useEffect } from 'react';
+import { Users, Search, Mail, Briefcase, Building2, Loader2 } from 'lucide-react';
+import { Employee } from '../types';
+import { getEmployees } from '../utils/storage';
 
 export function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [employeeAssets, setEmployeeAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    initializeStorage();
-    loadEmployees();
+    loadData();
   }, []);
 
-  const loadEmployees = () => {
-    const data = getEmployees();
-    setEmployees(data);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Supabase'dan xodimlarni kutib olamiz
+      const data = await getEmployees();
+      setEmployees(data);
+    } catch (error) {
+      console.error("Xodimlarni yuklashda xatolik:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEmployeeClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    const allAssets = getAssets();
-    const assets = allAssets.filter((asset) => asset.assignedTo === employee.id);
-    setEmployeeAssets(assets);
-  };
+  const filteredEmployees = employees.filter(emp => 
+    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.position.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl lg:text-3xl mb-2">Xodimlar</h1>
-        <p className="text-gray-600">Xodimlar ro'yxati va ularga biriktirilgan jihozlar</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Xodimlar ro'yxati</h1>
+          <p className="text-gray-500">Bankda ishlovchi barcha xodimlar va ularning ma'lumotlari</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Employees List */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="mb-4">Xodimlar ro'yxati</h3>
-          <div className="space-y-3">
-            {employees.map((employee) => {
-              const assetCount = getAssets().filter((a) => a.assignedTo === employee.id).length;
-              return (
-                <button
-                  key={employee.id}
-                  onClick={() => handleEmployeeClick(employee)}
-                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                    selectedEmployee?.id === employee.id
-                      ? 'border-primary bg-blue-50'
-                      : 'border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p style={{ fontWeight: 600 }} className="truncate">{employee.name}</p>
-                      <p className="text-sm text-gray-600 truncate">{employee.position}</p>
-                      <p className="text-xs text-gray-500 truncate">{employee.department}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Package className="h-4 w-4" />
-                      <span>{assetCount}</span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200 bg-gray-50/50 flex gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input 
+              type="text"
+              placeholder="Ism, lavozim yoki bo'lim bo'yicha qidirish..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
 
-        {/* Employee Details */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          {selectedEmployee ? (
-            <div className="space-y-6">
-              <div>
-                <h3 className="mb-4">Xodim ma'lumotlari</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-gray-600">To'liq ismi</p>
-                    <p style={{ fontWeight: 600 }}>{selectedEmployee.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Lavozimi</p>
-                    <p>{selectedEmployee.position}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Bo'limi</p>
-                    <p>{selectedEmployee.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="text-blue-600">{selectedEmployee.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Telefon</p>
-                    <p>{selectedEmployee.phone}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4">Biriktirilgan jihozlar ({employeeAssets.length})</h3>
-                {employeeAssets.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    Hech qanday jihoz biriktirilmagan
-                  </p>
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center text-gray-500">
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-4" />
+            <p>Xodimlar ma'lumotlari yuklanmoqda...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white border-b border-gray-200 text-gray-500 text-xs uppercase tracking-wider">
+                  <th className="p-4 font-medium">Xodim</th>
+                  <th className="p-4 font-medium">Lavozim</th>
+                  <th className="p-4 font-medium">Bo'lim</th>
+                  <th className="p-4 font-medium">Email</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-gray-500">
+                      Hech qanday xodim topilmadi.
+                    </td>
+                  </tr>
                 ) : (
-                  <div className="space-y-3">
-                    {employeeAssets.map((asset) => (
-                      <div
-                        key={asset.id}
-                        className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p style={{ fontWeight: 600 }}>{asset.name}</p>
-                            <p className="text-sm text-gray-600 mt-1">{asset.id}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {asset.category} • {asset.serialNumber}
-                            </p>
+                  filteredEmployees.map(emp => (
+                    <tr key={emp.id} className="hover:bg-gray-50/80 transition bg-white">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                            <Users className="h-5 w-5" />
                           </div>
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${
-                              asset.status === 'assigned'
-                                ? 'bg-green-100 text-green-700'
-                                : asset.status === 'in-repair'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {asset.status}
-                          </span>
+                          <div className="font-medium text-gray-900">{emp.name}</div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Briefcase className="h-4 w-4 text-gray-400" />
+                          {emp.position}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Building2 className="h-4 w-4 text-gray-400" />
+                          {emp.department}
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          {emp.email || 'Kiritilmagan'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <User className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <p>Xodimni tanlang</p>
-              </div>
-            </div>
-          )}
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
