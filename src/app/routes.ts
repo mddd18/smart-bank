@@ -9,6 +9,7 @@ import { Departments } from './pages/Departments';
 import { QRScanner } from './pages/QRScanner';
 import { NotFound } from './pages/NotFound';
 import { AIAnalytics } from './pages/AIAnalytics';
+import { About } from './pages/About';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'employees', Component: Employees },
       { path: 'departments', Component: Departments },
       { path: 'ai-analytics', Component: AIAnalytics },
+      { path: 'about', Component: About },
       { path: 'scan', Component: QRScanner },
       { path: '*', Component: NotFound },
     ],
