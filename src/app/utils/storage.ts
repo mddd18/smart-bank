@@ -1,92 +1,157 @@
 import { Asset, Employee, Department, AuditLog } from '../types';
-import { mockAssets, mockEmployees, mockDepartments, mockAuditLogs } from '../data/mockData';
+import { supabase } from './supabase';
 
-const STORAGE_KEYS = {
-  ASSETS: 'smart-bank-assets',
-  EMPLOYEES: 'smart-bank-employees',
-  DEPARTMENTS: 'smart-bank-departments',
-  AUDIT_LOGS: 'smart-bank-audit-logs',
+// ==========================================
+// ASSETS (JIHOZLAR)
+// ==========================================
+
+export const getAssets = async (): Promise<Asset[]> => {
+  const { data, error } = await supabase.from('assets').select('*').order('created_at', { ascending: false });
+  if (error) {
+    console.error('Jihozlarni olishda xatolik:', error.message);
+    return [];
+  }
+  return data.map(item => ({
+    id: item.id,
+    name: item.name,
+    category: item.category as any,
+    serialNumber: item.serial_number,
+    status: item.status as any,
+    assignedTo: item.assigned_to,
+    purchaseDate: item.purchase_date,
+    warrantyUntil: item.warranty_until,
+    riskScore: item.risk_score,
+  }));
 };
 
-// Initialize storage with mock data if empty
-export const initializeStorage = () => {
-  if (!localStorage.getItem(STORAGE_KEYS.ASSETS)) {
-    localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(mockAssets));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.EMPLOYEES)) {
-    localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(mockEmployees));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) {
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(mockDepartments));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
-    localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(mockAuditLogs));
-  }
+export const getAssetById = async (id: string): Promise<Asset | undefined> => {
+  const { data, error } = await supabase.from('assets').select('*').eq('id', id).single();
+  if (error || !data) return undefined;
+  
+  return {
+    id: data.id,
+    name: data.name,
+    category: data.category as any,
+    serialNumber: data.serial_number,
+    status: data.status as any,
+    assignedTo: data.assigned_to,
+    purchaseDate: data.purchase_date,
+    warrantyUntil: data.warranty_until,
+    riskScore: data.risk_score,
+  };
 };
 
-// Assets
-export const getAssets = (): Asset[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.ASSETS);
-  return data ? JSON.parse(data) : [];
-};
+export const saveAsset = async (asset: Asset) => {
+  const assetData = {
+    name: asset.name,
+    category: asset.category,
+    serial_number: asset.serialNumber,
+    status: asset.status,
+    assigned_to: asset.assignedTo || null,
+    purchase_date: asset.purchaseDate,
+    warranty_until: asset.warrantyUntil,
+    risk_score: asset.riskScore || 0,
+  };
 
-export const getAssetById = (id: string): Asset | undefined => {
-  const assets = getAssets();
-  return assets.find(asset => asset.id === id);
-};
-
-export const saveAsset = (asset: Asset) => {
-  const assets = getAssets();
-  const index = assets.findIndex(a => a.id === asset.id);
-  if (index >= 0) {
-    assets[index] = asset;
+  if (asset.id) {
+    // Yangilash (Update)
+    await supabase.from('assets').update(assetData).eq('id', asset.id);
   } else {
-    assets.push(asset);
+    // Yangi qo'shish (Insert)
+    await supabase.from('assets').insert([assetData]);
   }
-  localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(assets));
 };
 
-export const deleteAsset = (id: string) => {
-  const assets = getAssets().filter(a => a.id !== id);
-  localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(assets));
+export const deleteAsset = async (id: string) => {
+  await supabase.from('assets').delete().eq('id', id);
 };
 
-// Employees
-export const getEmployees = (): Employee[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
-  return data ? JSON.parse(data) : [];
+// ==========================================
+// EMPLOYEES (XODIMLAR)
+// ==========================================
+
+export const getEmployees = async (): Promise<Employee[]> => {
+  const { data, error } = await supabase.from('employees').select('*');
+  if (error) return [];
+  return data.map(item => ({
+    id: item.id,
+    name: item.name,
+    position: item.position,
+    department: item.department,
+    email: item.email,
+  }));
 };
 
-export const getEmployeeById = (id: string): Employee | undefined => {
-  const employees = getEmployees();
-  return employees.find(emp => emp.id === id);
+export const getEmployeeById = async (id: string): Promise<Employee | undefined> => {
+  const { data, error } = await supabase.from('employees').select('*').eq('id', id).single();
+  if (error || !data) return undefined;
+  return {
+    id: data.id,
+    name: data.name,
+    position: data.position,
+    department: data.department,
+    email: data.email,
+  };
 };
 
-// Departments
-export const getDepartments = (): Department[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
-  return data ? JSON.parse(data) : [];
+// ==========================================
+// DEPARTMENTS (BO'LIMLAR)
+// ==========================================
+
+export const getDepartments = async (): Promise<Department[]> => {
+  const { data, error } = await supabase.from('departments').select('*');
+  if (error) return [];
+  return data.map(item => ({
+    id: item.id,
+    name: item.name,
+  }));
 };
 
-// Audit Logs
-export const getAuditLogs = (): AuditLog[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
-  return data ? JSON.parse(data) : [];
+// ==========================================
+// AUDIT LOGS (TARIX)
+// ==========================================
+
+export const getAuditLogs = async (): Promise<AuditLog[]> => {
+  const { data, error } = await supabase.from('audit_logs').select('*').order('performed_at', { ascending: false });
+  if (error) return [];
+  return data.map(item => ({
+    id: item.id,
+    assetId: item.asset_id,
+    action: item.action,
+    performedBy: item.performed_by,
+    details: item.details,
+    date: item.performed_at,
+  }));
 };
 
-export const getAuditLogsByAssetId = (assetId: string): AuditLog[] => {
-  return getAuditLogs().filter(log => log.assetId === assetId);
+export const getAuditLogsByAssetId = async (assetId: string): Promise<AuditLog[]> => {
+  const { data, error } = await supabase.from('audit_logs').select('*').eq('asset_id', assetId).order('performed_at', { ascending: false });
+  if (error) return [];
+  return data.map(item => ({
+    id: item.id,
+    assetId: item.asset_id,
+    action: item.action,
+    performedBy: item.performed_by,
+    details: item.details,
+    date: item.performed_at,
+  }));
 };
 
-export const addAuditLog = (log: AuditLog) => {
-  const logs = getAuditLogs();
-  logs.push(log);
-  localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs));
+export const addAuditLog = async (log: Omit<AuditLog, 'id' | 'date'>) => {
+  await supabase.from('audit_logs').insert([{
+    asset_id: log.assetId,
+    action: log.action,
+    performed_by: log.performedBy,
+    details: log.details,
+  }]);
 };
 
-// Statistics
-export const getAssetStats = () => {
-  const assets = getAssets();
+// ==========================================
+// STATISTICS (STATISTIKA)
+// ==========================================
+
+export const getAssetStats = async () => {
+  const assets = await getAssets();
   return {
     total: assets.length,
     registered: assets.filter(a => a.status === 'registered').length,
@@ -96,8 +161,8 @@ export const getAssetStats = () => {
   };
 };
 
-export const getAssetsByCategory = () => {
-  const assets = getAssets();
+export const getAssetsByCategory = async () => {
+  const assets = await getAssets();
   return {
     IT: assets.filter(a => a.category === 'IT').length,
     Office: assets.filter(a => a.category === 'Office').length,
@@ -105,10 +170,10 @@ export const getAssetsByCategory = () => {
   };
 };
 
-export const getAssetsByDepartment = () => {
-  const assets = getAssets();
-  const employees = getEmployees();
-  const departments = getDepartments();
+export const getAssetsByDepartment = async () => {
+  const assets = await getAssets();
+  const employees = await getEmployees();
+  const departments = await getDepartments();
   
   const deptAssets = departments.map(dept => {
     const deptEmployees = employees.filter(emp => emp.department === dept.name);
