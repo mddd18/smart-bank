@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Users, Building2, QrCode, Plus, X, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Building2, QrCode, Plus, X, BrainCircuit, Info } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 
@@ -16,6 +16,7 @@ export function Sidebar() {
     { path: '/employees', icon: Users, label: 'Xodimlar' },
     { path: '/departments', icon: Building2, label: 'Bo\'limlar' },
     { path: '/ai-analytics', icon: BrainCircuit, label: 'AI Tahlil' },
+    { path: '/about', icon: Info, label: 'Loyiha haqida' },
   ];
 
   const quickActions = [
